@@ -230,14 +230,14 @@ setup_environment() {
 
     # 기존 설정 제거 (안전하게)
     if [[ -f "$bashrc_file" ]]; then
-        sed -i.bak '/^export REGION=/d; /^export CLUSTER_NAME=/d' "$bashrc_file"
+        sed -i.bak '/^export AWS_REGION=/d; /^export CLUSTER_NAME=/d' "$bashrc_file"
     fi
 
     # 새 설정 추가
     {
         echo ""
         echo "# EKS Tools Configuration - Added by $SCRIPT_NAME v$SCRIPT_VERSION on $(date)"
-        echo "export REGION=\"$REGION\""
+        echo "export AWS_REGION=\"$REGION\""
         if [[ -n "$CLUSTER_NAME" ]]; then
             echo "export CLUSTER_NAME=\"$CLUSTER_NAME\""
         fi
@@ -655,7 +655,7 @@ print_summary() {
 
     echo ""
     echo "환경 변수:"
-    echo "  - REGION: $REGION"
+    echo "  - AWS_REGION: $REGION"
     echo "  - CLUSTER_NAME: ${CLUSTER_NAME:-'미설정'}"
 
     echo ""
