@@ -242,6 +242,11 @@ setup_environment() {
             echo "export CLUSTER_NAME=\"$CLUSTER_NAME\""
         fi
         echo ""
+        echo "# kubectl alias & completion (based on Kubernetes official quick reference)"
+        echo "alias k=kubectl"
+        echo "complete -o default -F __start_kubectl k"
+        echo ""
+
     } >> "$bashrc_file"
 
     log_success "환경 변수 설정 완료 (리전: $REGION, 클러스터: ${CLUSTER_NAME:-'미설정'})"
