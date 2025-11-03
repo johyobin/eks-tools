@@ -242,10 +242,6 @@ setup_environment() {
             echo "export CLUSTER_NAME=\"$CLUSTER_NAME\""
         fi
         echo ""
-        echo "# kubectl alias & completion (based on Kubernetes official quick reference)"
-        echo "alias k=kubectl"
-        echo "complete -o default -F __start_kubectl k"
-        echo ""
 
     } >> "$bashrc_file"
 
@@ -538,21 +534,20 @@ setup_kubectl_completion() {
     log_info "kubectl bash 자동완성을 설정하는 중..."
 
     local bashrc_file="$HOME/.bashrc"
-    local completion_line="source <(kubectl completion bash)"
 
-    # 이미 설정되어 있는지 확인
-    if grep -q "kubectl completion bash" "$bashrc_file" 2>/dev/null; then
-        log_info "kubectl 자동완성이 이미 설정되어 있습니다."
-        return 0
-    fi
-
-    # kubectl이 설치되어 있는지 확인
+    # kubectl 설치 여부 확인
     if ! command -v kubectl >/dev/null 2>&1; then
         log_warning "kubectl이 설치되어 있지 않아 자동완성을 설정할 수 없습니다."
         return 1
     fi
 
-    # bash-completion 패키지 확인 및 안내
+    # 이미 설정되어 있는지 확인 (alias, completion 포함)
+    if grep -q "__start_kubectl k" "$bashrc_file" 2>/dev/null; then
+        log_info "kubectl 자동완성이 이미 설정되어 있습니다."
+        return 0
+    fi
+
+    # bash-completion 패키지 확인
     if ! dpkg -l bash-completion >/dev/null 2>&1 && ! rpm -qa | grep -q bash-completion; then
         log_warning "bash-completion 패키지가 설치되어 있지 않을 수 있습니다."
         log_info "자동완성이 작동하지 않는다면 다음 명령어로 설치하세요:"
@@ -560,17 +555,23 @@ setup_kubectl_completion() {
         log_info "  CentOS/RHEL: sudo yum install bash-completion"
     fi
 
-    # 자동완성 설정 추가
+    # 기존 설정 제거
+    if [[ -f "$bashrc_file" ]]; then
+        sed -i '/alias k=kubectl/d; /__start_kubectl k/d; /kubectl completion bash/d' "$bashrc_file"
+    fi
+
+    # 자동완성 및 alias 추가 (공식 문서 순서)
     {
         echo ""
-        echo "# kubectl completion - Added by $SCRIPT_NAME v$SCRIPT_VERSION"
-        echo "$completion_line"
+        echo "# kubectl alias & completion (based on Kubernetes official quick reference)"
+        echo "alias k=kubectl"
+        echo "complete -o default -F __start_kubectl k"
+        echo "source <(kubectl completion bash)"
         echo ""
     } >> "$bashrc_file"
 
-    log_success "kubectl 자동완성 설정 완료 (새 터미널에서 적용됨)"
+    log_success "kubectl alias 및 bash 자동완성 설정 완료 (새 터미널에서 적용됨)"
 }
-
 # kubeconfig 설정
 setup_kubeconfig() {
     if [[ -z "$CLUSTER_NAME" ]]; then
