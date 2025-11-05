@@ -3,8 +3,8 @@
 # =============================================================================
 # EKS Tools Setup Script (Production Ready)
 # Description: AWS EKS 관련 도구들을 안전하게 설치하는 스크립트
-# Author: Updated for production use
-# Version: 2.1
+# Author: hbcho
+# Version: 1.0
 # =============================================================================
 
 set -euo pipefail
@@ -26,7 +26,7 @@ REGION=""
 CLUSTER_NAME=""
 TEMP_DIR=""
 
-# 로그 함수들
+# 로그 함수들(trap 기반 에러 핸들링)
 log_info() {
     local message="$1"
     echo -e "${BLUE}[INFO]${NC} $message" | tee -a "$LOG_FILE"
@@ -79,9 +79,9 @@ trap cleanup EXIT
 
 # 사용자 확인 함수
 confirm_action() {
-    local message="$1"
-    local default="${2:-n}"
-
+    local message="$1"      # 화면에 출력할 프롬프트용 변수
+    local default="${2:-n}" # 두 번째 인자로 y/n 입력 시 분기처리(현재는 두 번째 인자 사용 X)
+    # 기본값 강조 표현
     while true; do
         if [[ "$default" == "y" ]]; then
             read -p "$message (Y/n): " -r response
@@ -196,7 +196,7 @@ setup_environment() {
     # 리전 입력
     while true; do
         read -p "AWS 리전을 입력하세요 (예: us-west-2): " -r input_region
-        if [[ -n "$input_region" && "$input_region" =~ ^[a-z0-9-]+$ ]]; then
+        if [[ -n "$input_region" && "$input_region" =~ ^[a-z0-9-]+$ ]]; then  # 입력값 검증 및 region 코드 패턴 검증
             REGION="$input_region"
             break
         else
@@ -205,21 +205,27 @@ setup_environment() {
     done
 
     # 클러스터 이름 입력
-    echo ""
-    echo "EKS 클러스터 이름을 입력하세요 (건너뛰려면 Enter):"
-    read -p "클러스터 이름: " -r input_cluster
-
-    if [[ -n "$input_cluster" ]]; then
-        if [[ "$input_cluster" =~ ^[a-zA-Z0-9-]+$ ]]; then
-            CLUSTER_NAME="$input_cluster"
+    while true; do
+        echo "EKS 클러스터 이름을 입력하세요 (건너뛰려면 Enter):"
+        read -p "클러스터 이름:" -r input_cluster
+        if [[ -n "$input_cluster" ]]; then
+            if [[ "$input_cluster" =~ ^[a-zA-Z0-9-]+$ ]]; then
+                CLUSTER_NAME="$input_cluster"
+                break
+            else
+                echo "클러스터 이름에 잘못된 문자가 포함되어 있습니다. 올바른 이름을 입력해주세요."
+            fi
         else
-            log_warning "클러스터 이름에 잘못된 문자가 포함되어 있습니다. 나중에 수동으로 설정해주세요."
+            log_info "클러스터 이름을 나중에 설정하겠습니다."
             CLUSTER_NAME=""
+            break
         fi
-    else
-        log_info "클러스터 이름을 나중에 설정하겠습니다."
-        CLUSTER_NAME=""
-    fi
+    done
+
+    # 프로파일 설정
+    echo ""
+    echo "kubeconfig 업데이트 시 사용할 프로파일을 입력하세요:"
+    read -p ""
 
     # bashrc 백업
     local bashrc_file="$HOME/.bashrc"
@@ -616,6 +622,7 @@ setup_kubeconfig() {
 
         # 연결 테스트
         log_info "클러스터 연결을 테스트하는 중..."
+        # /dev/null 2>&1: 표준출력 및 표준에러를 버림
         if timeout 30 kubectl cluster-info >/dev/null 2>&1; then
             log_success "EKS 클러스터 연결 확인 완료"
         else
