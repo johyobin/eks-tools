@@ -222,11 +222,6 @@ setup_environment() {
         fi
     done
 
-    # 프로파일 설정
-    echo ""
-    echo "kubeconfig 업데이트 시 사용할 프로파일을 입력하세요:"
-    read -p ""
-
     # bashrc 백업
     local bashrc_file="$HOME/.bashrc"
     if [[ -f "$bashrc_file" ]]; then
