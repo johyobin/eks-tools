@@ -336,6 +336,89 @@ install_kubectl() {
     fi
 }
 
+# kubectl 유틸 설치(krew, ctx, neat)
+install_krew() {
+    log_info "kubectl 유틸(krew, ctx, neat) 설치를 시작합니다..."
+
+    # kubectl 설치 여부 확인
+    if ! command -v kubectl >/dev/null 2>&1; then
+        log_error "kubectl이 설치되어 있지 않습니다. 먼저 kubectl을 설치해주세요."
+        return 1
+    fi
+
+    # 이미 krew가 설치되어 있는지 확인
+    if kubectl krew version >/dev/null 2>&1; then
+        log_warning "krew가 이미 설치되어 있습니다."
+        if ! confirm_action "기존 krew를 유지하시겠습니까? (업데이트 없이 진행)"; then
+            log_info "기존 krew를 제거하고 재설치합니다."
+            rm -rf "${KREW_ROOT:-$HOME/.krew}"
+        else
+            log_info "krew 설치 단계를 건너뜁니다."
+            return 0
+        fi
+    fi
+
+    # 임시 디렉터리 생성
+    TEMP_DIR=$(mktemp -d)
+    cd "$TEMP_DIR"
+
+    # 운영체제 및 아키텍처 식별
+    local os arch
+    os="$(uname | tr '[:upper:]' '[:lower:]')"
+    arch="$(uname -m)"
+    case "$arch" in
+        x86_64) arch="amd64" ;;
+        armv7*) arch="arm" ;;
+        aarch64) arch="arm64" ;;
+        *) log_error "지원되지 않는 아키텍처입니다: $arch"; return 1 ;;
+    esac
+
+    log_info "krew 설치 파일을 다운로드하는 중... ($os/$arch)"
+
+    # 최신 krew 설치 파일 다운로드
+    local krew_tar="krew.tar.gz"
+    if ! curl -sSL --connect-timeout 10 --max-time 60 \
+        -o "$krew_tar" "https://github.com/kubernetes-sigs/krew/releases/latest/download/krew-${os}_${arch}.tar.gz"; then
+        log_error "krew 다운로드에 실패했습니다."
+        return 1
+    fi
+
+    # 압축 해제 및 설치 실행
+    tar zxvf "$krew_tar" >/dev/null 2>&1
+    local krew_binary="./krew-${os}_${arch}"
+    if [[ ! -f "$krew_binary" ]]; then
+        log_error "krew 바이너리를 찾을 수 없습니다."
+        return 1
+    fi
+
+    log_info "krew를 설치하는 중..."
+    "$krew_binary" install krew >/dev/null 2>&1
+
+    # PATH 설정 (bashrc에 추가)
+    local bashrc_file="$HOME/.bashrc"
+    if ! grep -q 'KREW_ROOT' "$bashrc_file" 2>/dev/null; then
+        {
+            echo ""
+            echo "# kubectl krew 설정"
+            echo "export KREW_ROOT=\"\$HOME/.krew\""
+            echo "export PATH=\"\$KREW_ROOT/bin:\$PATH\""
+        } >> "$bashrc_file"
+        log_info "PATH 설정이 .bashrc에 추가되었습니다. (새 터미널에서 적용됨)"
+    fi
+
+    # PATH 즉시 적용
+    export KREW_ROOT="$HOME/.krew"
+    export PATH="$KREW_ROOT/bin:$PATH"
+
+    # 설치 확인
+    if kubectl krew version >/dev/null 2>&1; then
+        log_success "krew 설치 완료"
+    else
+        log_error "krew 설치 검증에 실패했습니다."
+        return 1
+    fi
+}
+
 # eksctl 설치
 install_eksctl() {
     log_info "eksctl 설치를 시작합니다..."
