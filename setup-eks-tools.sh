@@ -779,6 +779,23 @@ print_summary() {
         kubectl_version=$(kubectl version --client -o json 2>/dev/null | grep -o '"gitVersion":"[^"]*' | cut -d'"' -f4 2>/dev/null || kubectl version --client --short 2>/dev/null | cut -d'' -f3 2>/dev/null || echo "설치됨")
         echo "  ✅ kubectl: $kubectl_version"
     fi
+    
+    # krew
+    if kubectl krew version >/dev/null 2>&1; then
+        local krew_version
+        krew_version=$(kubectl krew version 2>/dev/null | grep 'GitTag' | awk '{print $2}' || echo "설치됨")
+        echo "  ✅ krew: $krew_version"
+    fi
+
+    # ctx
+    if kubectl krew list 2>/dev/null | grep -q '^ctx$'; then
+        echo "  ✅ kubectl-ctx (via krew)"
+    fi
+
+    # neat
+    if kubectl krew list 2>/dev/null | grep -q '^neat$'; then
+        echo "  ✅ kubectl-neat (via krew)"
+    fi
 
     if command -v eksctl >/dev/null 2>&1; then
         local eksctl_version
