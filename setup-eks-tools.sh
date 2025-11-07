@@ -804,7 +804,6 @@ print_summary() {
         echo "  2. 다음 명령어로 kubeconfig를 설정하세요:"
         echo "     aws eks update-kubeconfig --region $REGION --name <CLUSTER_NAME>"
     fi
-    echo "  - 새 터미널을 열거나 'source ~/.bashrc'를 실행하여 변경사항을 적용하세요"
     echo "  - 'kubectl get nodes' 명령어로 클러스터 연결을 확인하세요"
     echo ""
 
@@ -846,7 +845,17 @@ main() {
         log_error "kubectl 설치에 실패했습니다."
         install_success=false
     fi
+    
+    if ! install_krew; then
+        log_error "krew 설치에 실패했습니다."
+        install_success=false
+    fi
 
+    if ! install_kubectl_plugins; then
+        log_error "kubectl plugins(ctx, neat) 설치에 실패했습니다."
+        install_success=false
+    fi
+    
     if ! install_eksctl; then
         log_error "eksctl 설치에 실패했습니다."
         install_success=false
