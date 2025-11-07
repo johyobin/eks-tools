@@ -394,21 +394,20 @@ install_krew() {
     log_info "krew를 설치하는 중..."
     "$krew_binary" install krew >/dev/null 2>&1
 
+
     # PATH 설정 (bashrc에 추가)
     local bashrc_file="$HOME/.bashrc"
     if ! grep -q 'KREW_ROOT' "$bashrc_file" 2>/dev/null; then
         {
             echo ""
             echo "# kubectl krew 설정"
-            echo "export KREW_ROOT=\"\$HOME/.krew\""
-            echo "export PATH=\"\$KREW_ROOT/bin:\$PATH\""
+            echo "export PATH=\"\${KREW_ROOT:-\$HOME/.krew}/bin:\$PATH\""
         } >> "$bashrc_file"
         log_info "PATH 설정이 .bashrc에 추가되었습니다. (새 터미널에서 적용됨)"
     fi
 
     # PATH 즉시 적용
-    export KREW_ROOT="$HOME/.krew"
-    export PATH="$KREW_ROOT/bin:$PATH"
+    export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
 
     # 설치 확인
     if kubectl krew version >/dev/null 2>&1; then
