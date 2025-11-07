@@ -336,7 +336,7 @@ install_kubectl() {
     fi
 }
 
-# kubectl 유틸 설치(krew, ctx, neat)
+# kubectl 플러그인 매니져 'krew' 설치
 install_krew() {
     log_info "kubectl 유틸(krew, ctx, neat) 설치를 시작합니다..."
 
@@ -417,6 +417,54 @@ install_krew() {
         log_error "krew 설치 검증에 실패했습니다."
         return 1
     fi
+}
+
+# kubectl 플러그인 설치(ctx, neat)
+install_kubectl_plugins() {
+    log_info "kubectl 플러그인(ctx, neat) 설치를 시작합니다..."
+
+    # krew 설치 확인
+    if ! command -v kubectl &>/dev/null; then
+        log_error "kubectl이 설치되어 있지 않습니다. 먼저 kubectl을 설치해주세요."
+        return 1
+    fi
+
+    if ! kubectl krew version &>/dev/null; then
+        log_error "krew가 설치되어 있지 않습니다. 먼저 install_krew()를 실행해주세요."
+        return 1
+    fi
+
+    # PATH가 적용되어 있지 않은 경우를 대비해 수동 설정
+    if [[ ":$PATH:" != *":$HOME/.krew/bin:"* ]]; then
+        export KREW_ROOT="$HOME/.krew"
+        export PATH="$KREW_ROOT/bin:$PATH"
+        log_info "krew PATH가 현재 세션에 반영되었습니다."
+    fi
+
+    # 설치할 플러그인 목록
+    local plugins=("ctx" "neat")
+
+    for plugin in "${plugins[@]}"; do
+        if kubectl krew list | grep -q "^${plugin}$"; then
+            log_warning "플러그인 '${plugin}'이 이미 설치되어 있습니다."
+            if confirm_action "플러그인 '${plugin}'을 재설치하시겠습니까?"; then
+                log_info "'${plugin}'을 재설치합니다..."
+                kubectl krew upgrade "${plugin}" >/dev/null 2>&1 || kubectl krew install "${plugin}" >/dev/null 2>&1
+                log_success "'${plugin}' 재설치 완료"
+            else
+                log_info "'${plugin}' 설치를 건너뜁니다."
+            fi
+        else
+            log_info "'${plugin}' 플러그인을 설치하는 중..."
+            if kubectl krew install "${plugin}" >/dev/null 2>&1; then
+                log_success "'${plugin}' 설치 완료"
+            else
+                log_error "'${plugin}' 설치에 실패했습니다."
+            fi
+        fi
+    done
+
+    log_success "kubectl 플러그인 설치(ctx, neat) 완료"
 }
 
 # eksctl 설치
