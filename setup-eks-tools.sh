@@ -894,6 +894,14 @@ main() {
     fi
 
     print_summary
+
+    # 모든 환경 설정을 즉시 반영
+    if [[ -f "$HOME/.bashrc" ]]; then
+        log_info ".bashrc 내용을 현재 세션에 반영합니다..."
+        # shellcheck disable=SC1090
+        source "$HOME/.bashrc"
+        log_success ".bashrc 적용 완료 (PATH 및 환경변수 반영됨)"
+    fi
 }
 
 # 스크립트가 직접 실행될 때만 main 함수 호출
