@@ -836,6 +836,9 @@ main() {
 
     log_info "이 스크립트는 다음 도구들을 설치합니다:"
     echo "  - kubectl (Kubernetes CLI)"
+    echo "  - krew (kubectl plugin manager)"
+    echo "  - ctx (kubectl plugin for context switching)"
+    echo "  - neat (kubectl plugin for readability)"
     echo "  - eksctl (EKS CLI)"
     echo "  - Helm (Kubernetes 패키지 매니저)"
     echo ""
