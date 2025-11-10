@@ -362,37 +362,37 @@ install_krew() {
     TEMP_DIR=$(mktemp -d)
     cd "$TEMP_DIR"
 
-    # 운영체제 및 아키텍처 식별
-    local os arch
-    os="$(uname | tr '[:upper:]' '[:lower:]')"
-    arch="$(uname -m)"
-    case "$arch" in
-        x86_64) arch="amd64" ;;
-        armv7*) arch="arm" ;;
-        aarch64) arch="arm64" ;;
-        *) log_error "지원되지 않는 아키텍처입니다: $arch"; return 1 ;;
-    esac
+    # OS / ARCH 식별 및 정규화 (공식 문서 패턴)
+    local OS ARCH KREW
+    OS="$(uname | tr '[:upper:]' '[:lower:]')"   # 예: linux, darwin
+    ARCH="$(uname -m | sed \
+        -e 's/x86_64/amd64/' \
+        -e 's/armv.*/arm/' \
+        -e 's/aarch64$/arm64/')"
 
-    log_info "krew 설치 파일을 다운로드하는 중... ($os/$arch)"
+    KREW="krew-${OS}_${ARCH}"                   # 예: krew-linux_amd64
+
+    log_info "krew 설치 파일을 다운로드하는 중... (${KREW})"
 
     # 최신 krew 설치 파일 다운로드
-    local krew_tar="krew.tar.gz"
-    if ! curl -sSL --connect-timeout 10 --max-time 60 \
-        -o "$krew_tar" "https://github.com/kubernetes-sigs/krew/releases/latest/download/krew-${os}_${arch}.tar.gz"; then
+    if ! curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/${KREW}.tar.gz"; then
         log_error "krew 다운로드에 실패했습니다."
         return 1
     fi
 
     # 압축 해제 및 설치 실행
-    tar zxvf "$krew_tar" >/dev/null 2>&1
-    local krew_binary="./krew-${os}_${arch}"
-    if [[ ! -f "$krew_binary" ]]; then
-        log_error "krew 바이너리를 찾을 수 없습니다."
+    if ! tar zxvf "${KREW}.tar.gz" >/dev/null 2>&1; then
+        log_error "krew 압축 해제에 실패했습니다."
+        return 1
+    fi
+
+    if [[ ! -f "./${KREW}" ]]; then
+        log_error "krew 바이너리를 찾을 수 없습니다. (예상 경로: ./${KREW})"
         return 1
     fi
 
     log_info "krew를 설치하는 중..."
-    "$krew_binary" install krew >/dev/null 2>&1
+    "./${KREW}" install krew >/dev/null 2>&1
 
 
     # PATH 설정 (bashrc에 추가)
@@ -405,15 +405,15 @@ install_krew() {
         } >> "$bashrc_file"
         log_info "PATH 설정이 .bashrc에 추가되었습니다. (새 터미널에서 적용됨)"
     fi
-
-    # PATH 즉시 적용
+    # 즉시 적용
     export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
 
     # 설치 확인
     if kubectl krew version >/dev/null 2>&1; then
         log_success "krew 설치 완료"
     else
-        log_error "krew 설치 검증에 실패했습니다."
+        log_error "krew 설치 검증에 실패했습니다. PATH 설정을 확인해주세요."
+        log_info "예: export PATH=\"\${KREW_ROOT:-\$HOME/.krew}/bin:\$PATH\""
         return 1
     fi
 }
