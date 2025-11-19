@@ -163,7 +163,7 @@ check_prerequisites() {
     fi
 
     # 필수 명령어 확인
-    local required_commands=("curl" "tar" "sha256sum" "grep" "sed")
+    local required_commands=("curl" "tar" "sha256sum" "grep" "sed" "git")
     for cmd in "${required_commands[@]}"; do
         if ! command -v "$cmd" >/dev/null 2>&1; then
             log_error "필수 명령어 '$cmd'가 설치되어 있지 않습니다."
@@ -391,8 +391,54 @@ install_krew() {
         return 1
     fi
 
+    # ✅ 1단계: KREW_ROOT 먼저 export
+    export KREW_ROOT="${KREW_ROOT:-$HOME/.krew}"
+    log_info "KREW_ROOT 설정: $KREW_ROOT"
+
+    # ✅ 2단계: PATH에 추가
+    export PATH="$KREW_ROOT/bin:$PATH"
+    log_info "PATH에 추가: $KREW_ROOT/bin"
+
+    # ✅ 3단계: krew 설치 (이제 KREW_ROOT를 찾을 수 있음)
     log_info "krew를 설치하는 중..."
-    "./${KREW}" install krew >/dev/null 2>&1
+    local install_output install_exit_code
+    
+    install_output=$("./${KREW}" install krew 2>&1)
+    install_exit_code=$?
+
+    echo "$install_output" >> "$LOG_FILE"  # 로그 저장
+    
+    if [[ $install_exit_code -ne 0 ]]; then
+        log_error "krew 설치 명령어 실행에 실패했습니다. (종료 코드: $install_exit_code)"
+        log_error "에러 출력:"
+        echo "$install_output" | while IFS= read -r line; do
+            log_error "  $line"
+        done
+        return 1
+    fi
+    
+    log_info "krew 설치 명령어 실행 완료"
+    
+    # ✅ 4단계: 상세한 파일 확인
+    log_info "설치된 파일을 확인하는 중..."
+    
+    if [[ ! -d "$KREW_ROOT/bin" ]]; then
+        log_error "krew bin 디렉터리가 생성되지 않았습니다: $KREW_ROOT/bin"
+        if [[ -d "$KREW_ROOT" ]]; then
+            log_info "KREW_ROOT 내용:"
+            ls -la "$KREW_ROOT" 2>&1 | tee -a "$LOG_FILE"
+        fi
+        return 1
+    fi
+
+    if [[ ! -f "$KREW_ROOT/bin/kubectl-krew" ]]; then
+        log_error "kubectl-krew 파일이 생성되지 않았습니다: $KREW_ROOT/bin/kubectl-krew"
+        log_info "bin 디렉터리 내용:"
+        ls -la "$KREW_ROOT/bin" 2>&1 | tee -a "$LOG_FILE"
+        return 1
+    fi
+
+    log_success "kubectl-krew 파일 확인됨: $KREW_ROOT/bin/kubectl-krew"
 
 
     # PATH 설정 (bashrc에 추가)
@@ -405,8 +451,6 @@ install_krew() {
         } >> "$bashrc_file"
         log_info "PATH 설정이 .bashrc에 추가되었습니다. (새 터미널에서 적용됨)"
     fi
-    # 즉시 적용
-    export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
 
     # 설치 확인
     if kubectl krew version >/dev/null 2>&1; then
